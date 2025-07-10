@@ -26,7 +26,44 @@ const paymentRoutes = require('./routes/paymentRoutes'); // Ajout des routes de 
 const app = express();
 
 // Middlewares de Sécurité
-app.use(helmet()); // Définit divers en-têtes HTTP pour la sécurité
+// Configuration Helmet plus spécifique, notamment pour CSP
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"], // Par défaut, n'autorise que les ressources du même domaine
+        scriptSrc: [
+          "'self'",
+          // Ajoutez ici les CDN de confiance si vous en utilisez pour des scripts JS
+          // Par exemple: 'https://cdnjs.cloudflare.com', 'https://unpkg.com', etc.
+          // Pour l'instant, on reste strict avec 'self'
+          // Si vous utilisez des scripts inline (non recommandé), vous auriez besoin de 'unsafe-inline' ou mieux, des hashes/nonces
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'", // Souvent nécessaire pour les styles injectés par des bibliothèques JS ou Tailwind en dev. À revoir pour la production.
+          // Ajoutez ici les CDN de confiance pour les CSS (ex: Google Fonts)
+          // 'https://fonts.googleapis.com'
+        ],
+        imgSrc: ["'self'", "data:", "https://via.placeholder.com"], // Autorise les images du domaine, data URI, et placeholder.com
+        fontSrc: ["'self'"], // Ajoutez 'https://fonts.gstatic.com' si vous utilisez Google Fonts
+        connectSrc: [
+          "'self'", // Autorise les connexions vers le propre domaine (pour les API internes)
+          // Ajoutez ici les domaines externes auxquels votre backend pourrait avoir besoin de se connecter (ex: API Stripe)
+          // 'https://api.stripe.com'
+        ],
+        frameSrc: ["'self'"], // Domaines autorisés pour les iframes (ex: Captcha, Stripe Elements)
+        objectSrc: ["'none'"], // Désactive les plugins comme Flash
+        upgradeInsecureRequests: [], // Redirige HTTP vers HTTPS (si le proxy gère déjà SSL, cela peut être redondant)
+      },
+    },
+    // Autres configurations Helmet que vous pourriez vouloir ajuster :
+    // crossOriginEmbedderPolicy: false, // Mettre à true si vous n'utilisez pas de COEP, sinon peut casser des choses
+    // crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+    // originAgentCluster: true,
+  })
+);
+
 
 // Configuration CORS
 const corsOptions = {

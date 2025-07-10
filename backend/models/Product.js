@@ -42,16 +42,37 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  tags: { // Ajout du champ tags
+    type: [String],
+    index: true // Index simple sur les tags pour le filtrage exact
+  },
+  variants: [ // Ajout du champ variants
+    {
+      sku: { type: String, unique: true, sparse: true }, // SKU unique par variante, sparse pour permettre null/undefined si pas de SKU
+      color: String,
+      size: String,
+      stockSpecific: { type: Number, default: 0 }, // Stock spécifique à cette variante
+      priceModifier: { type: Number, default: 0 } // Ex: +5€ pour la taille XL ou couleur spéciale
+      // D'autres champs spécifiques à la variante peuvent être ajoutés ici
+    }
+  ],
   createdAt: {
     type: Date,
     default: Date.now,
   }
 });
 
-// Index pour la recherche textuelle sur le nom et le filtrage/tri par catégorie et prix
-productSchema.index({ name: 'text', description: 'text' }); // Index textuel pour la recherche
-productSchema.index({ category: 1 }); // Index pour filtrer par catégorie
-productSchema.index({ price: 1 }); // Index pour trier/filtrer par prix
-productSchema.index({ featured: 1 }); // Index pour les produits mis en avant
+// Index textuel pondéré pour la recherche sur name, description et tags
+productSchema.index(
+  { name: 'text', description: 'text', tags: 'text' },
+  { weights: { name: 10, description: 3, tags: 5 }, name: 'ProductTextSearch' } // Nommer l'index est une bonne pratique
+);
+
+// Autres index pour le filtrage et le tri
+productSchema.index({ category: 1 });
+productSchema.index({ price: 1 });
+productSchema.index({ featured: 1 });
+// L'index sur `tags` (array) est déjà créé par `index: true` dans la définition du champ,
+// utile pour des recherches exactes de tags, différent de l'index textuel.
 
 module.exports = mongoose.model('Product', productSchema);
