@@ -48,4 +48,10 @@ const productSchema = new mongoose.Schema({
   }
 });
 
+// Index pour la recherche textuelle sur le nom et le filtrage/tri par catégorie et prix
+productSchema.index({ name: 'text', description: 'text' }); // Index textuel pour la recherche
+productSchema.index({ category: 1 }); // Index pour filtrer par catégorie
+productSchema.index({ price: 1 }); // Index pour trier/filtrer par prix
+productSchema.index({ featured: 1 }); // Index pour les produits mis en avant
+
 module.exports = mongoose.model('Product', productSchema);

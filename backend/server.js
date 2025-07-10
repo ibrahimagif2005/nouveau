@@ -6,6 +6,8 @@ const { errorHandler } = require('./utils/errorHandler');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const morgan = require('morgan'); // HTTP request logger
+const logger = require('./utils/logger'); // Winston logger
 // const colors = require('colors'); // Optionnel, pour colorer les logs console
 
 // Charger les variables d'environnement depuis .env (s'il existe à la racine du projet global)
@@ -19,6 +21,7 @@ connectDB();
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const paymentRoutes = require('./routes/paymentRoutes'); // Ajout des routes de paiement
 
 const app = express();
 
@@ -50,17 +53,26 @@ const limiter = rateLimit({
 app.use('/api', limiter); // Appliquer le rate limiter à toutes les routes API
 
 // Middleware simple pour logger les requêtes (peut être remplacé par Morgan en production)
-if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path}`);
-    next();
-  });
-}
+// Remplacé par Morgan et Winston
+// if (process.env.NODE_ENV === 'development') {
+//   app.use((req, res, next) => {
+//     console.log(`${req.method} ${req.path}`);
+//     next();
+//   });
+// }
+
+// HTTP request logging avec Morgan, utilisant le stream de Winston
+// 'combined' est un format de log standard d'Apache, mais vous pouvez utiliser 'dev', 'short', 'tiny' ou un format personnalisé.
+// En production, on pourrait utiliser un format plus concis ou JSON.
+const morganFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
+app.use(morgan(morganFormat, { stream: logger.stream }));
+
 
 // Monter les routeurs
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/payment', paymentRoutes); // Montage des routes de paiement
 
 // Route de test
 app.get('/', (req, res) => {

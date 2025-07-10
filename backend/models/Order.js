@@ -86,4 +86,12 @@ const orderSchema = new mongoose.Schema(
   }
 );
 
+// Index pour retrouver rapidement les commandes d'un utilisateur
+orderSchema.index({ user: 1 });
+// Index pour filtrer/trier par statut de commande
+orderSchema.index({ status: 1 });
+// Index pour les commandes payées et non livrées (potentiellement utile pour un dashboard admin)
+orderSchema.index({ isPaid: 1, isDelivered: 1 });
+
+
 module.exports = mongoose.model('Order', orderSchema);

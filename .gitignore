@@ -46,6 +46,9 @@ coverage/
 frontend/coverage/
 backend/coverage/
 
+# Logs specified for backend
+backend/logs/
+
 # Misc
 .nyc_output
 .cache

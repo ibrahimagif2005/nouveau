@@ -1,4 +1,5 @@
 // backend/utils/errorHandler.js
+const logger = require('./logger'); // Importer le logger Winston
 
 // Classe d'erreur personnalisée pour les erreurs opérationnelles attendues
 class AppError extends Error {
@@ -15,12 +16,17 @@ const errorHandler = (err, req, res, next) => {
   let error = err;
 
   // Log pour le développeur, plus détaillé pour les erreurs non opérationnelles
-  if (!error.isOperational) {
-    console.error('--------------------');
-    console.error('ERREUR NON OPÉRATIONNELLE:', error);
-    console.error('--------------------');
+  // Utiliser Winston pour logger l'erreur
+  // En production, on ne loggue que les erreurs opérationnelles avec un niveau d'alerte plus bas (ex: warn ou info)
+  // et les erreurs serveur (non opérationnelles) avec un niveau 'error'.
+  if (error.isOperational) {
+    // Pour les erreurs attendues (AppError), on peut choisir un niveau moins critique si elles sont fréquentes
+    // logger.warn(`${error.statusCode || 500} - ${error.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
+    logger.error(`${error.statusCode || 500} - ${error.message} - ${req.originalUrl} - ${req.method} - ${req.ip} - Stack: ${error.stack}`);
+
   } else {
-    console.error('AppError:', error.message, error.statusCode);
+    // Pour les erreurs de programmation ou autres erreurs inattendues
+    logger.error(`500 - Erreur Serveur Interne - ${error.message} - ${req.originalUrl} - ${req.method} - ${req.ip} - Stack: ${error.stack}`, error);
   }
 
 
