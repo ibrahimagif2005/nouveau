@@ -1,63 +1,66 @@
 // backend/utils/errorHandler.js
 
-// Classe d'erreur personnalisée pour mieux gérer les erreurs avec des codes de statut
-class ErrorResponse extends Error {
+// Classe d'erreur personnalisée pour les erreurs opérationnelles attendues
+class AppError extends Error {
   constructor(message, statusCode) {
     super(message);
     this.statusCode = statusCode;
+    this.isOperational = true; // Marque l'erreur comme opérationnelle
 
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
 const errorHandler = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
+  let error = err;
 
-  // Log pour le développeur
-  console.error('--------------------');
-  console.error('ERROR:', err);
-  console.error('--------------------');
-  // console.error(err.stack.red); // Pourrait nécessiter un package comme 'colors'
+  // Log pour le développeur, plus détaillé pour les erreurs non opérationnelles
+  if (!error.isOperational) {
+    console.error('--------------------');
+    console.error('ERREUR NON OPÉRATIONNELLE:', error);
+    console.error('--------------------');
+  } else {
+    console.error('AppError:', error.message, error.statusCode);
+  }
 
-  // Erreur de CastError Mongoose (ID mal formaté)
+
+  // Convertir certaines erreurs Mongoose/JWT en AppError pour une gestion standardisée
   if (err.name === 'CastError') {
-    const message = `Ressource non trouvée avec l'id ${err.value}`;
-    error = new ErrorResponse(message, 404);
-  }
-
-  // Erreur de validation Mongoose
-  if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors)
-      .map((val) => val.message)
-      .join(', ');
-    error = new ErrorResponse(message, 400); // Bad Request
-  }
-
-  // Erreur de duplication de clé Mongoose (ex: email unique)
-  if (err.code === 11000) {
+    const message = `Ressource non trouvée. Invalide ${err.path}: ${err.value}`;
+    error = new AppError(message, 404);
+  } else if (err.name === 'ValidationError') {
+    const messages = Object.values(err.errors).map(val => val.message).join('. ');
+    error = new AppError(`Données d'entrée invalides. ${messages}`, 400);
+  } else if (err.code === 11000) { // Erreur de duplication MongoDB
     const field = Object.keys(err.keyValue)[0];
     const value = err.keyValue[field];
     const message = `La valeur '${value}' pour le champ '${field}' existe déjà. Veuillez en utiliser une autre.`;
-    error = new ErrorResponse(message, 400); // Bad Request
+    error = new AppError(message, 400); // Bad Request
+  } else if (err.name === 'JsonWebTokenError') {
+    error = new AppError('Token invalide. Veuillez vous reconnecter.', 401);
+  } else if (err.name === 'TokenExpiredError') {
+    error = new AppError('Votre session a expiré. Veuillez vous reconnecter.', 401);
   }
 
-  // Erreur JWT: Token invalide
-  if (err.name === 'JsonWebTokenError') {
-    const message = 'Token invalide, autorisation refusée.';
-    error = new ErrorResponse(message, 401); // Unauthorized
+  // Réponse par défaut pour les erreurs non gérées spécifiquement ou non opérationnelles
+  const statusCode = error.statusCode || 500;
+  const message = error.isOperational ? error.message : 'Une erreur serveur est survenue. Veuillez réessayer plus tard.';
+
+  // En mode développement, envoyer plus de détails pour les erreurs non opérationnelles
+  if (process.env.NODE_ENV === 'development' && !error.isOperational) {
+    return res.status(statusCode).json({
+      success: false,
+      error: err, // Erreur originale complète
+      message: err.message,
+      stack: err.stack,
+    });
   }
 
-  // Erreur JWT: Token expiré
-  if (err.name === 'TokenExpiredError') {
-    const message = 'Token expiré, autorisation refusée.';
-    error = new ErrorResponse(message, 401); // Unauthorized
-  }
-
-  res.status(error.statusCode || 500).json({
+  // Réponse pour la production ou les erreurs opérationnelles
+  res.status(statusCode).json({
     success: false,
-    error: error.message || 'Erreur Serveur Interne',
+    message: message,
   });
 };
 
-module.exports = { errorHandler, ErrorResponse };
+module.exports = { AppError, errorHandler };
