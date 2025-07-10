@@ -1,0 +1,141 @@
+-- Ce fichier décrit la structure des collections pour la base de données NoSQL (MongoDB)
+-- utilisée par l'application Ecommerce.
+
+-- #####################################################################
+-- Collection: users
+-- #####################################################################
+-- Stocke les informations des utilisateurs.
+--
+-- Exemple de document:
+-- {
+--   "_id": ObjectId("..."),
+--   "name": "John Doe",
+--   "email": "user@example.com",
+--   "password": "hash_bcrypt_pour_le_mot_de_passe", // Haché côté serveur
+--   "role": "user", // Peut être "user" ou "admin"
+--   "address": "123 Rue de Paris, 75001 Paris, France", // Optionnel
+--   "orders": [ // Liste des identifiants des commandes passées par l'utilisateur
+--     ObjectId("orderId1..."),
+--     ObjectId("orderId2...")
+--   ],
+--   "createdAt": ISODate("2023-10-27T10:00:00Z"),
+--   "updatedAt": ISODate("2023-10-27T10:00:00Z")
+-- }
+--
+-- Notes sur les champs du modèle Mongoose (backend/models/User.js):
+-- - name: String, requis
+-- - email: String, requis, unique, format email validé
+-- - password: String, requis, minlength 6, non sélectionné par défaut
+-- - role: String, enum ['user', 'admin'], default 'user'
+-- - address: String, optionnel
+-- - orders: Array de ObjectId, ref 'Order'
+-- - createdAt, updatedAt: Timestamps gérés par Mongoose
+
+
+-- #####################################################################
+-- Collection: products
+-- #####################################################################
+-- Stocke les informations sur les produits disponibles à la vente.
+--
+-- Exemple de document:
+-- {
+--   "_id": ObjectId("..."),
+--   "name": "Produit XYZ Haute Performance",
+--   "price": 49.99,
+--   "description": "Description détaillée du produit XYZ...", // Optionnel
+--   "category": "Électronique", // Optionnel
+--   "stock": 100, // Quantité en stock
+--   "imageUrl": "https://example.com/images/produit-xyz.jpg", // Optionnel
+--   "featured": true, // Pour mettre en avant le produit, default false
+--   "user": ObjectId("userIdDeLAdminQuiACreeCeProduit..."), // Optionnel, ref 'User'
+--   "createdAt": ISODate("2023-10-27T10:05:00Z"),
+--   "updatedAt": ISODate("2023-10-27T10:05:00Z")
+-- }
+--
+-- Notes sur les champs du modèle Mongoose (backend/models/Product.js):
+-- - name: String, requis, trim
+-- - price: Number, requis
+-- - description: String, optionnel
+-- - category: String, optionnel
+-- - stock: Number, requis, default 0
+-- - imageUrl: String, optionnel
+-- - featured: Boolean, default false
+-- - user: ObjectId, ref 'User' (qui a créé le produit)
+-- - createdAt, updatedAt: Timestamps gérés par Mongoose
+
+
+-- #####################################################################
+-- Collection: orders
+-- #####################################################################
+-- Stocke les informations sur les commandes passées par les utilisateurs.
+--
+-- Exemple de document:
+-- {
+--   "_id": ObjectId("orderId1..."),
+--   "user": ObjectId("userIdDuClient..."), // Référence à l'utilisateur qui a passé la commande
+--   "orderItems": [
+--     {
+--       "product": ObjectId("productId1..."), // Référence au produit
+--       "name": "Produit XYZ Haute Performance", // Nom du produit au moment de la commande
+--       "quantity": 2,
+--       "price": 49.99, // Prix du produit au moment de la commande
+--       "imageUrl": "https://example.com/images/produit-xyz.jpg" // Optionnel
+--     },
+--     {
+--       "product": ObjectId("productId2..."),
+--       "name": "Accessoire Alpha",
+--       "quantity": 1,
+--       "price": 19.99,
+--       "imageUrl": "https://example.com/images/accessoire-alpha.jpg"
+--     }
+--   ],
+--   "shippingAddress": {
+--     "address": "123 Rue de Paris",
+--     "city": "Paris",
+--     "postalCode": "75001",
+--     "country": "France"
+--   },
+--   "paymentMethod": "Stripe", // Ou "PayPal", etc.
+--   "paymentResult": { // Informations retournées par le processeur de paiement
+--     "id": "stripe_payment_id...",
+--     "status": "succeeded",
+--     "update_time": "...",
+--     "email_address": "user@example.com"
+--   },
+--   "itemsPrice": 119.97, // Total des produits (2 * 49.99 + 1 * 19.99)
+--   "taxPrice": 23.99, // Montant des taxes
+--   "shippingPrice": 5.00, // Frais de port
+--   "totalPrice": 148.96, // Total final
+--   "status": "En cours de traitement", // ['En attente de paiement', 'Payée', 'En cours de traitement', 'Expédiée', 'Livrée', 'Annulée']
+--   "isPaid": true,
+--   "paidAt": ISODate("2023-10-27T12:00:00Z"),
+--   "isDelivered": false,
+--   "deliveredAt": null, // Date de livraison si applicable
+--   "createdAt": ISODate("2023-10-27T11:55:00Z"),
+--   "updatedAt": ISODate("2023-10-27T12:05:00Z")
+-- }
+--
+-- Notes sur les champs du modèle Mongoose (backend/models/Order.js):
+-- - user: ObjectId, requis, ref 'User'
+-- - orderItems: Array d'objets [{ name, quantity, imageUrl, price, product (ObjectId, ref 'Product') }]
+-- - shippingAddress: Object { address, city, postalCode, country }, tous requis
+-- - paymentMethod: String, requis, default 'Stripe'
+-- - paymentResult: Object { id, status, update_time, email_address }
+-- - itemsPrice, taxPrice, shippingPrice, totalPrice: Number, requis, default 0.0
+-- - status: String, enum, requis, default 'En attente de paiement'
+-- - isPaid: Boolean, requis, default false
+-- - paidAt: Date
+-- - isDelivered: Boolean, requis, default false
+-- - deliveredAt: Date
+-- - createdAt, updatedAt: Timestamps gérés par Mongoose
+
+-- Fin de la description des collections MongoDB.
+-- Pour la configuration de la connexion, voir backend/config/db.js
+-- Les modèles Mongoose se trouvent dans backend/models/
+-- Aucun script de "migration" n'est typiquement exécuté pour MongoDB de la même manière que pour SQL.
+-- Les index sont définis dans les schémas Mongoose ou peuvent être créés manuellement via le shell Mongo.
+-- Exemple d'index (déjà implicite par Mongoose pour les champs `unique:true` comme User.email):
+-- db.users.createIndex({ email: 1 }, { unique: true })
+-- db.products.createIndex({ name: "text", description: "text" }) // Pour la recherche textuelle
+-- db.orders.createIndex({ user: 1 })
+-- db.orders.createIndex({ status: 1 })
