@@ -34,4 +34,7 @@ router
   .put(protect, authorize('admin'), validate(mongoIdParamSchema, 'params'), validate(updateProductSchema), updateProduct)
   .delete(protect, authorize('admin'), validate(mongoIdParamSchema, 'params'), deleteProduct);
 
+// Route pour les recommandations
+router.get('/:id/recommendations', validate(mongoIdParamSchema, 'params'), getRecommendations);
+
 module.exports = router;

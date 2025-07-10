@@ -33,7 +33,8 @@ router.post(
 // Route pour les webhooks Stripe (si vous les implémentez)
 // Important: Stripe recommande de ne PAS utiliser express.json() pour cette route spécifique,
 // mais plutôt `express.raw({type: 'application/json'})` pour vérifier la signature.
-// router.post('/webhook', express.raw({type: 'application/json'}), stripeWebhookHandler);
+const { stripeWebhookHandler } = require('../controllers/paymentController'); // Importer le handler
+router.post('/webhook', express.raw({type: 'application/json'}), stripeWebhookHandler);
 
 
 module.exports = router;

@@ -43,7 +43,20 @@ const productSchema = Joi.object({
     size: Joi.string().trim().optional().allow(null, '').max(50),
     stockSpecific: Joi.number().integer().min(0).default(0),
     priceModifier: Joi.number().default(0)
-  })).optional()
+  })).optional(),
+  attributes: Joi.object({
+    weight: Joi.number().min(0).optional().allow(null),
+    dimensions: Joi.object({
+      length: Joi.number().min(0).optional().allow(null),
+      width: Joi.number().min(0).optional().allow(null),
+      height: Joi.number().min(0).optional().allow(null)
+    }).optional()
+  }).optional(),
+  seo: Joi.object({
+    metaTitle: Joi.string().trim().max(70).optional().allow(null, ''),
+    metaDescription: Joi.string().trim().max(160).optional().allow(null, '')
+    // keywords: Joi.array().items(Joi.string()).optional()
+  }).optional()
   // user: Joi.string().hex().length(24) // Si vous validez l'ID utilisateur (ObjectId MongoDB)
 });
 
@@ -90,7 +103,19 @@ const updateProductSchema = Joi.object({
     size: Joi.string().trim().optional().allow(null, '').max(50),
     stockSpecific: Joi.number().integer().min(0).default(0),
     priceModifier: Joi.number().default(0)
-  })).optional()
+  })).optional(),
+  attributes: Joi.object({
+    weight: Joi.number().min(0).optional().allow(null),
+    dimensions: Joi.object({
+      length: Joi.number().min(0).optional().allow(null),
+      width: Joi.number().min(0).optional().allow(null),
+      height: Joi.number().min(0).optional().allow(null)
+    }).optional()
+  }).optional(),
+  seo: Joi.object({
+    metaTitle: Joi.string().trim().max(70).optional().allow(null, ''),
+    metaDescription: Joi.string().trim().max(160).optional().allow(null, '')
+  }).optional()
 }).min(1); // Au moins un champ doit être fourni pour la mise à jour
 
 

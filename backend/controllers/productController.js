@@ -1,5 +1,6 @@
 // backend/controllers/productController.js
-const Product = require('../models/Product'); // Assurez-vous que le chemin est correct
+const Product = require('../models/Product');
+const { AppError } = require('../utils/errorHandler'); // Importer AppError
 
 // @desc    Récupérer tous les produits
 // @route   GET /api/products
@@ -8,6 +9,39 @@ exports.getProducts = async (req, res, next) => {
   try {
     // const products = await Product.find({}); // Décommentez quand le modèle est prêt
     res.status(200).json({ success: true, count: 0, data: [], message: 'Produits récupérés (placeholder)' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Récupérer des recommandations de produits
+// @route   GET /api/products/:id/recommendations
+// @access  Public
+exports.getRecommendations = async (req, res, next) => {
+  try {
+    const viewedProduct = await Product.findById(req.params.id);
+
+    if (!viewedProduct) {
+      return next(new AppError('Produit non trouvé', 404));
+    }
+
+    // Recherche des produits similaires :
+    // - Même catégorie
+    // - Différent du produit actuel
+    // - Limité à un certain nombre (ex: 4)
+    // - Optionnel: trier par popularité, date d'ajout, ou autre critère pertinent
+    const recommendations = await Product.find({
+      category: viewedProduct.category,
+      _id: { $ne: viewedProduct._id } // Exclure le produit lui-même
+    })
+    .limit(4) // Nombre de recommandations à retourner
+    .select('-variants -attributes -seo -user -description'); // Exclure les champs lourds ou non nécessaires pour une liste de recommandations
+
+    res.status(200).json({
+      success: true,
+      count: recommendations.length,
+      data: recommendations,
+    });
   } catch (error) {
     next(error);
   }

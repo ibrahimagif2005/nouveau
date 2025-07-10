@@ -56,6 +56,19 @@ const productSchema = new mongoose.Schema({
       // D'autres champs spécifiques à la variante peuvent être ajoutés ici
     }
   ],
+  attributes: { // Ajout du champ attributes
+    weight: { type: Number, min: 0 }, // Poids en kg ou g
+    dimensions: { // Dimensions en cm
+      length: { type: Number, min: 0 },
+      width: { type: Number, min: 0 },
+      height: { type: Number, min: 0 }
+    }
+  },
+  seo: { // Ajout du champ seo
+    metaTitle: { type: String, trim: true, maxlength: 70 },
+    metaDescription: { type: String, trim: true, maxlength: 160 },
+    // keywords: [String] // Optionnel, moins utilisé par Google maintenant
+  },
   createdAt: {
     type: Date,
     default: Date.now,
