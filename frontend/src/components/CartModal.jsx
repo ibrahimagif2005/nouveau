@@ -1,87 +1,58 @@
 // frontend/src/components/CartModal.jsx
 import React from 'react';
-// import { useSelector, useDispatch } from 'react-redux';
-// import { removeFromCartAction, updateQuantityAction } from '../redux/slices/cartSlice';
-// import { FaTimes, FaPlus, FaMinus, FaTrash } from 'react-icons/fa';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom'; // Pour la navigation
+import CartItems from '../features/cart/CartItems'; // Utiliser le composant de feature
+// import { FaTimes } from 'react-icons/fa';
 
 const CartModal = ({ isOpen, onClose }) => {
-  // const cartItems = useSelector(state => state.cart.items);
-  // const dispatch = useDispatch();
-
-  // const handleRemoveFromCart = (productId) => {
-  //   dispatch(removeFromCartAction(productId));
-  // };
-
-  // const handleUpdateQuantity = (productId, quantity) => {
-  //   if (quantity < 1) {
-  //     dispatch(removeFromCartAction(productId));
-  //   } else {
-  //     dispatch(updateQuantityAction({ productId, quantity }));
-  //   }
-  // };
-
-  // const totalPrice = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const navigate = useNavigate();
+  const cartItemsState = useSelector(state => state.cart.items); // Accéder aux vrais items du store
+  const totalPrice = cartItemsState.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
   if (!isOpen) return null;
 
-  const cartItems = [ // Données placeholder
-    { id: 1, name: 'Produit Exemple 1', quantity: 2, price: 10, imageUrl: 'https://via.placeholder.com/50' },
-    { id: 2, name: 'Produit Exemple 2', quantity: 1, price: 25, imageUrl: 'https://via.placeholder.com/50' },
-  ];
-  const totalPrice = 45.00;
+  const handleCheckout = () => {
+    onClose(); // Fermer le modal
+    navigate('/checkout'); // Naviguer vers la page de paiement
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
-        <div className="flex justify-between items-center mb-4">
+    // Overlay
+    <div
+      className="fixed inset-0 bg-black bg-opacity-60 z-40 flex justify-end"
+      onClick={onClose} // Fermer si on clique sur l'overlay
+    >
+      {/* Contenu du Modal */}
+      <div
+        className="bg-white p-6 shadow-xl w-full max-w-md h-full flex flex-col transform transition-transform duration-300 ease-in-out translate-x-0"
+        onClick={e => e.stopPropagation()} // Empêcher la fermeture si on clique dans le modal
+        style={{ WebkitOverflowScrolling: 'touch' }} // Pour un défilement fluide sur iOS
+      >
+        <div className="flex justify-between items-center mb-4 pb-4 border-b">
           <h2 className="text-2xl font-semibold">Votre Panier</h2>
-          <button onClick={onClose} className="text-gray-600 hover:text-gray-800">
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-800 transition-colors"
+            aria-label="Fermer le panier"
+          >
             {/* <FaTimes size={24} /> */}
             Fermer (X)
           </button>
         </div>
 
-        {cartItems.length === 0 ? (
-          <p className="text-center text-gray-600">Votre panier est vide.</p>
-        ) : (
-          <div className="overflow-y-auto flex-grow">
-            {cartItems.map(item => (
-              <div key={item.id} className="flex items-center justify-between py-3 border-b last:border-b-0">
-                <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-cover rounded mr-4" />
-                <div className="flex-grow">
-                  <h3 className="font-semibold">{item.name}</h3>
-                  <p className="text-sm text-gray-500">${item.price.toFixed(2)}</p>
-                </div>
-                <div className="flex items-center">
-                  {/* <button onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)} className="p-1 text-gray-600 hover:text-black">
-                    <FaMinus />
-                  </button> */}
-                  <span className="mx-2">{item.quantity}</span>
-                  {/* <button onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)} className="p-1 text-gray-600 hover:text-black">
-                    <FaPlus />
-                  </button> */}
-                  {/* <button onClick={() => handleRemoveFromCart(item.id)} className="ml-4 text-red-500 hover:text-red-700">
-                    <FaTrash />
-                  </button> */}
-                   <span className="mx-1">Q:</span>
-                   <button className="p-1 text-gray-600 hover:text-black">(-)</button>
-                   <button className="p-1 text-gray-600 hover:text-black">(+)</button>
-                   <button className="ml-2 text-red-500 hover:text-red-700">(Suppr)</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* CartItems gère l'affichage des articles et le message "panier vide" */}
+        <CartItems />
 
-        {cartItems.length > 0 && (
-          <div className="mt-6 pt-4 border-t">
+        {cartItemsState.length > 0 && (
+          <div className="mt-auto pt-6 border-t"> {/* mt-auto pour pousser vers le bas */}
             <div className="flex justify-between items-center font-semibold text-lg mb-4">
               <span>Total:</span>
               <span>${totalPrice.toFixed(2)}</span>
             </div>
             <button
-              // onClick={() => { onClose(); /* navigate to checkout */ }}
-              className="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+              onClick={handleCheckout}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors"
             >
               Passer à la caisse
             </button>

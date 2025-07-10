@@ -1,22 +1,42 @@
 // frontend/src/redux/slices/cartSlice.js
 import { createSlice } from '@reduxjs/toolkit';
 
+// Fonction pour charger le panier depuis localStorage
+const loadCartFromLocalStorage = () => {
+  try {
+    const serializedCart = localStorage.getItem('cartItems');
+    if (serializedCart === null) {
+      return []; // Retourner un tableau vide si rien n'est trouvé
+    }
+    return JSON.parse(serializedCart);
+  } catch (e) {
+    console.warn("Erreur lors du chargement du panier depuis localStorage:", e);
+    return []; // Retourner un tableau vide en cas d'erreur
+  }
+};
+
+// Fonction pour sauvegarder le panier dans localStorage
+const saveCartToLocalStorage = (items) => {
+  try {
+    const serializedCart = JSON.stringify(items);
+    localStorage.setItem('cartItems', serializedCart);
+  } catch (e) {
+    console.warn("Erreur lors de la sauvegarde du panier dans localStorage:", e);
+  }
+};
+
 const initialState = {
-  items: [], // Chaque item: { id, name, price, quantity, imageUrl, ...autresInfosProduit }
-  // Vous pourriez aussi stocker les totaux ici, ou les calculer à la volée dans les selectors/composants
-  // itemsPrice: 0,
-  // shippingPrice: 0, // Pourrait être calculé ou fixe
-  // taxPrice: 0,      // Pourrait être calculé
-  // totalPrice: 0,
+  items: loadCartFromLocalStorage(), // Charger l'état initial depuis localStorage
+  // itemsPrice, shippingPrice, taxPrice, totalPrice peuvent être ajoutés ici si nécessaire
+  // et mis à jour dans les reducers ou calculés via des selectors.
 };
 
 const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
-    // Action pour ajouter un produit au panier ou augmenter sa quantité
     addToCartAction: (state, action) => {
-      const newItem = action.payload; // Le produit complet avec la quantité à ajouter (souvent 1)
+      const newItem = action.payload;
       const existingItem = state.items.find(item => item.id === newItem.id);
 
       if (existingItem) {
@@ -24,37 +44,34 @@ const cartSlice = createSlice({
       } else {
         state.items.push({ ...newItem, quantity: newItem.quantity || 1 });
       }
-      // Recalculer les totaux si vous les stockez dans le state
+      saveCartToLocalStorage(state.items);
     },
-    // Action pour retirer un produit du panier
     removeFromCartAction: (state, action) => {
-      const productIdToRemove = action.payload; // ID du produit à retirer
+      const productIdToRemove = action.payload;
       state.items = state.items.filter(item => item.id !== productIdToRemove);
-      // Recalculer les totaux
+      saveCartToLocalStorage(state.items);
     },
-    // Action pour mettre à jour la quantité d'un produit
     updateQuantityAction: (state, action) => {
       const { productId, quantity } = action.payload;
       const itemToUpdate = state.items.find(item => item.id === productId);
 
       if (itemToUpdate) {
-        if (quantity < 1) { // Si la quantité devient 0 ou moins, retirer l'article
+        if (quantity < 1) {
           state.items = state.items.filter(item => item.id !== productId);
         } else {
           itemToUpdate.quantity = quantity;
         }
       }
-      // Recalculer les totaux
+      saveCartToLocalStorage(state.items);
     },
-    // Action pour vider complètement le panier (ex: après une commande réussie)
     clearCartAction: (state) => {
       state.items = [];
-      // Réinitialiser les totaux
+      saveCartToLocalStorage(state.items); // Aussi sauvegarder le panier vide
     },
-    // Vous pourriez avoir d'autres actions, par exemple pour charger un panier sauvegardé
-    // loadCart: (state, action) => {
-    //   state.items = action.payload.items;
-    //   // ... charger d'autres infos du panier
+    // Action pour explicitement remplacer le panier (utile après connexion si un panier serveur existe)
+    // setCartAction: (state, action) => {
+    //   state.items = action.payload;
+    //   saveCartToLocalStorage(state.items);
     // }
   },
 });
@@ -64,11 +81,14 @@ export const {
   removeFromCartAction,
   updateQuantityAction,
   clearCartAction,
+  // setCartAction, // Décommentez si utilisé
 } = cartSlice.actions;
 
-// Sélecteurs (optionnel, mais bonne pratique pour accéder au state)
+// Sélecteurs
 export const selectCartItems = state => state.cart.items;
-export const selectCartTotalItems = state => state.cart.items.reduce((total, item) => total + item.quantity, 0);
-export const selectCartTotalPrice = state => state.cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+export const selectCartTotalItems = state =>
+  state.cart.items.reduce((total, item) => total + (item.quantity || 0), 0);
+export const selectCartTotalPrice = state =>
+  state.cart.items.reduce((total, item) => total + ((item.price || 0) * (item.quantity || 0)), 0);
 
 export default cartSlice.reducer;
