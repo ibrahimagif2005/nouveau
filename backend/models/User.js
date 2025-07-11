@@ -38,7 +38,22 @@ const userSchema = new mongoose.Schema({
   orders: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Order'
+  }],
+  refreshTokens: [{ // Champ pour stocker les refresh tokens actifs
+    token: { type: String, required: true },
+    expires: { type: Date, required: true },
+    createdAt: { type: Date, default: Date.now },
+    deviceInfo: { type: String } // User-Agent ou autre info pour identifier l'appareil/session
+    // revokedAt: Date // Optionnel, pour marquer un token comme révoqué explicitement
   }]
+});
+
+// Nettoyer les refresh tokens expirés (peut aussi être fait par un job séparé)
+userSchema.pre('save', function(next) {
+  if (this.isModified('refreshTokens')) {
+    this.refreshTokens = this.refreshTokens.filter(rt => rt.expires > new Date());
+  }
+  next();
 });
 
 // Middleware Mongoose pour hacher le mot de passe avant de sauvegarder

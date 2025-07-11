@@ -8,6 +8,8 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan'); // HTTP request logger
 const logger = require('./utils/logger'); // Winston logger
+const cookieParser = require('cookie-parser'); // Pour parser les cookies, nécessaire pour csurf
+const { verifyCsrf } = require('./utils/csrf'); // Middleware CSRF
 // const colors = require('colors'); // Optionnel, pour colorer les logs console
 
 // Charger les variables d'environnement depuis .env (s'il existe à la racine du projet global)
@@ -99,24 +101,50 @@ app.use('/api', limiter); // Appliquer le rate limiter à toutes les routes API
 // }
 
 // HTTP request logging avec Morgan, utilisant le stream de Winston
-// 'combined' est un format de log standard d'Apache, mais vous pouvez utiliser 'dev', 'short', 'tiny' ou un format personnalisé.
-// En production, on pourrait utiliser un format plus concis ou JSON.
 const morganFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
 app.use(morgan(morganFormat, { stream: logger.stream }));
 
+// Middleware pour parser les cookies
+app.use(cookieParser());
+
+// Middleware de protection CSRF - il doit être configuré APRÈS cookieParser et les middlewares de session (si utilisés)
+// Et AVANT les routeurs qui gèrent les requêtes modifiant l'état.
+// Pour les API SPA, on expose un endpoint pour obtenir le token, et le client l'envoie dans un header.
+// csurf va vérifier ce header.
+app.use(verifyCsrf);
+
+// Route spéciale pour que le client SPA récupère le token CSRF
+app.get('/api/csrf-token', (req, res) => {
+  // req.csrfToken() est une fonction ajoutée par csurf pour générer un token.
+  // Ce token doit être stocké par le client et envoyé dans un en-tête XSRF-TOKEN (ou autre configuré) pour les requêtes POST/PUT/DELETE etc.
+  res.json({ csrfToken: req.csrfToken() });
+});
+
+// Gérer les erreurs CSRF spécifiquement (optionnel mais recommandé pour un meilleur feedback)
+// Ce gestionnaire d'erreurs doit être placé APRÈS app.use(verifyCsrf) et AVANT votre gestionnaire d'erreurs global.
+app.use((err, req, res, next) => {
+  if (err.code === 'EBADCSRFTOKEN') {
+    logger.warn(`Tentative CSRF détectée: ${err.message} - IP: ${req.ip} - URL: ${req.originalUrl}`);
+    res.status(403).json({ success: false, message: 'Protection CSRF: Token invalide ou manquant.' });
+  } else {
+    next(err);
+  }
+});
 
 // Monter les routeurs
+// Les routes qui modifient l'état (POST, PUT, DELETE, PATCH) seront protégées par csurf.
+// Les routes GET ne sont généralement pas protégées par CSRF, mais csurf ne les bloque pas par défaut.
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/payment', paymentRoutes); // Montage des routes de paiement
+app.use('/api/payment', paymentRoutes);
 
 // Route de test
 app.get('/', (req, res) => {
   res.send('API Ecommerce sécurisée en cours d\'exécution...');
 });
 
-// Middleware de gestion des erreurs (doit être le dernier middleware d'application)
+// Middleware de gestion des erreurs global (doit être le dernier middleware d'application)
 app.use(errorHandler);
 
 const PORT = process.env.BACKEND_PORT || process.env.PORT || 5000;
