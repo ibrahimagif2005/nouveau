@@ -119,7 +119,45 @@ describe('Product API Endpoints', () => {
   // });
 
   // TODO: Ajouter des tests pour PUT et DELETE /api/products/:id (nécessitent adminToken)
-  // TODO: Ajouter des tests pour la recherche /api/products/search
+
+  // Test pour GET /api/products/search
+  describe('GET /api/products/search', () => {
+    test('devrait retourner des résultats de recherche avec succès (200)', async () => {
+      // Mocker Product.aggregate pour simuler une réponse d'Atlas Search
+      const mockSearchResults = [
+        { _id: 'searchResult1', name: 'Searched Product Alpha', price: 15.00, category: 'Cat A', score: 1.5 },
+        { _id: 'searchResult2', name: 'Searched Product Beta', price: 25.00, category: 'Cat B', score: 1.2 }
+      ];
+      const mockAggregateResponse = [{
+        paginatedResults: mockSearchResults,
+        totalCount: [{ count: mockSearchResults.length }]
+      }];
+
+      Product.aggregate = jest.fn().mockResolvedValue(mockAggregateResponse);
+
+      const res = await request(app).get('/api/products/search?q=testsearch');
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual(expect.arrayContaining(
+        mockSearchResults.map(p => expect.objectContaining({ name: p.name }))
+      ));
+      expect(res.body.totalProducts).toEqual(mockSearchResults.length);
+      expect(Product.aggregate).toHaveBeenCalledWith(expect.arrayContaining([
+        expect.objectContaining({
+          $search: expect.objectContaining({ index: "ecommerce_search" })
+        })
+      ]));
+    });
+
+    test('devrait retourner une erreur 400 si le paramètre q est manquant', async () => {
+      const res = await request(app).get('/api/products/search');
+      expect(res.statusCode).toEqual(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toMatch(/Veuillez fournir un terme de recherche/i);
+    });
+  });
+
   // TODO: Ajouter des tests pour les recommandations /api/products/:id/recommendations
 });
 

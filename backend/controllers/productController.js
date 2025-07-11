@@ -53,38 +53,66 @@ exports.getProducts = async (req, res, next) => {
   }
 };
 
-// @desc    Rechercher des produits
+// @desc    Rechercher des produits en utilisant Atlas Search
 // @route   GET /api/products/search
 // @access  Public
 exports.searchProducts = async (req, res, next) => {
   try {
     const { q } = req.query;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 10; // Valeur par défaut pour limit
     const skip = (page - 1) * limit;
 
     if (!q) {
       return next(new AppError('Veuillez fournir un terme de recherche (q).', 400));
     }
 
-    // Utilisation de l'index textuel MongoDB standard
-    // L'index doit exister sur les champs concernés (name, description, category, tags)
-    // productSchema.index({ name: 'text', description: 'text', category: 'text', tags: 'text' }, { weights: { name: 10, category: 7, tags: 5, description: 2 }});
-    // (Notre index actuel est { name: 'text', description: 'text', tags: 'text' })
-    // Il faudrait recréer l'index si on ajoute 'category' à la recherche textuelle ou ajuster la requête.
-    // Pour l'instant, on se base sur l'index existant.
+    // Pipeline d'agrégation pour Atlas Search
+    const aggregationPipeline = [
+      {
+        $search: {
+          index: "ecommerce_search", // Nom de l'index Atlas Search que l'utilisateur doit configurer
+          compound: {
+            should: [
+              { text: { query: q, path: "name", score: { boost: 3 } } },
+              { text: { query: q, path: "description", score: { boost: 2 } } },
+              { text: { query: q, path: "category" } },
+              { text: { query: q, path: "tags" } }
+            ],
+            minimumShouldMatch: 1
+          }
+        }
+      },
+      {
+        $facet: { // Pour obtenir les résultats paginés ET le compte total dans une seule requête
+          paginatedResults: [
+            { $sort: { score: { $meta: "searchScore" }, createdAt: -1 } }, // Trier par score, puis par date
+            { $skip: skip },
+            { $limit: limit },
+            // Projeter uniquement les champs nécessaires pour la liste des résultats
+            {
+              $project: {
+                name: 1,
+                price: 1,
+                imageUrl: 1,
+                category: 1,
+                averageRating: 1,
+                numReviews: 1,
+                // score: { $meta: "searchScore" } // Optionnel: inclure le score de recherche
+              }
+            }
+          ],
+          totalCount: [
+            { $count: 'count' }
+          ]
+        }
+      }
+    ];
 
-    const query = { $text: { $search: q } };
-    const projection = { score: { $meta: "textScore" } }; // Pour pouvoir trier par pertinence
+    const results = await Product.aggregate(aggregationPipeline);
 
-    const products = await Product.find(query, projection)
-      .sort({ score: { $meta: "textScore" }, createdAt: -1 }) // Trier par pertinence, puis par date
-      .skip(skip)
-      .limit(limit)
-      .select('name price imageUrl category') // Sélectionner les champs à retourner
-      .lean();
-
-    const totalProducts = await Product.countDocuments(query);
+    const products = results[0].paginatedResults;
+    const totalProducts = results[0].totalCount.length > 0 ? results[0].totalCount[0].count : 0;
     const totalPages = Math.ceil(totalProducts / limit);
 
     res.status(200).json({
@@ -97,9 +125,10 @@ exports.searchProducts = async (req, res, next) => {
     });
 
   } catch (error) {
-    // Gérer les erreurs spécifiques à la recherche textuelle si nécessaire
-    if (error.message.includes('Text search failed')) {
-        return next(new AppError('Erreur lors de la recherche. Veuillez réessayer.', 500));
+    logger.error('Erreur de recherche Atlas Search:', error);
+    if (error.name === 'MongoServerError' && error.message.toLowerCase().includes('$search')) {
+        // Cette erreur peut survenir si l'index Atlas Search n'est pas configuré ou mal nommé.
+        return next(new AppError('Erreur de configuration de la recherche avancée. Veuillez réessayer une recherche simple ou contacter le support.', 500));
     }
     next(error);
   }
