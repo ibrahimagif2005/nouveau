@@ -46,8 +46,8 @@ const HomePage = () => {
         }, 500); // Réduit pour des tests plus rapides
     };
 
-    // fetchProductsData(); // Décommentez pour l'appel API réel
-    simulateFetch(); // Commentez ou supprimez pour l'appel API réel
+    fetchProductsData(); // Utiliser l'appel API réel maintenant
+    // simulateFetch(); // Commenter la simulation
 
 
   }, [fetchData]); // fetchData est mémorisé par useCallback, donc stable

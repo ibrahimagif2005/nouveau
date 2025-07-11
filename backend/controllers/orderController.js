@@ -3,41 +3,78 @@ const Order = require('../models/Order');
 const Product = require('../models/Product'); // Nécessaire pour la création, non pour populate directement ici mais bonne pratique de l'avoir
 const { AppError } = require('../utils/errorHandler'); // Pour la gestion d'erreurs personnalisée
 
-// @desc    Créer une nouvelle commande
+// @desc    Créer une nouvelle commande et initier une intention de paiement Stripe
 // @route   POST /api/orders
 // @access  Private
 exports.createOrder = async (req, res, next) => {
-  const {
-    orderItems,
-    shippingAddress,
-    paymentMethod,
-    itemsPrice,
-    taxPrice,
-    shippingPrice,
-    totalPrice,
-  } = req.body;
+  const { orderItems, shippingAddress, paymentMethod = 'Stripe' } = req.body; // paymentMethod par défaut à Stripe
 
   if (!orderItems || orderItems.length === 0) {
     return next(new AppError('Aucun article dans la commande', 400));
   }
-  // TODO: Vérifier la disponibilité des produits et les prix côté serveur avant de créer la commande
 
   try {
+    // 1. Vérifier les prix et calculer le total côté serveur pour la sécurité
+    let calculatedItemsPrice = 0;
+    const populatedOrderItems = [];
+
+    for (const item of orderItems) {
+      const product = await Product.findById(item.product); // item.product est l'ID du produit
+      if (!product) {
+        return next(new AppError(`Produit non trouvé: ID ${item.product}`, 404));
+      }
+      if (product.stock < item.quantity) {
+        return next(new AppError(`Stock insuffisant pour ${product.name}. Demandé: ${item.quantity}, Disponible: ${product.stock}`, 400));
+      }
+      calculatedItemsPrice += product.price * item.quantity;
+      populatedOrderItems.push({
+        product: product._id,
+        name: product.name,
+        quantity: item.quantity,
+        price: product.price, // Utiliser le prix de la BDD
+        imageUrl: product.imageUrl,
+      });
+    }
+
+    // TODO: Calculer taxPrice et shippingPrice de manière plus dynamique si nécessaire
+    const taxPrice = parseFloat((calculatedItemsPrice * 0.1).toFixed(2)); // Exemple: taxe de 10%
+    const shippingPrice = calculatedItemsPrice > 100 ? 0 : 5; // Exemple: livraison gratuite si > 100€
+    const totalPrice = parseFloat((calculatedItemsPrice + taxPrice + shippingPrice).toFixed(2));
+
+    // 2. Créer la commande en base de données avec statut 'En attente de paiement'
     const order = new Order({
-      user: req.user._id, // Depuis le middleware protect
-      orderItems,
+      user: req.user._id,
+      orderItems: populatedOrderItems, // Utiliser les items populés avec les prix serveur
       shippingAddress,
       paymentMethod,
-      itemsPrice,
+      itemsPrice: calculatedItemsPrice,
       taxPrice,
       shippingPrice,
       totalPrice,
-      status: 'En attente de paiement', // Statut initial
+      status: 'En attente de paiement',
     });
 
     const createdOrder = await order.save();
-    // TODO: Décrémenter le stock des produits
-    res.status(201).json({ success: true, data: createdOrder });
+
+    // 3. Créer l'intention de paiement Stripe
+    // Assurez-vous que createPaymentIntent est importé ou défini dans ce fichier ou un service
+    const { createPaymentIntent } = require('../utils/paymentService');
+    const paymentIntent = await createPaymentIntent(
+      createdOrder.totalPrice, // Utiliser le totalPrice de la commande créée
+      'eur', // ou la devise de la commande
+      { order_id: createdOrder._id.toString() } // Lier l'intention de paiement à l'ID de la commande
+    );
+
+    // Il n'est généralement pas nécessaire de sauvegarder le client_secret dans la commande ici,
+    // car il est à usage unique pour le client. Mais on peut le retourner.
+
+    res.status(201).json({
+      success: true,
+      order: createdOrder,
+      clientSecret: paymentIntent.client_secret, // Envoyer le client_secret au frontend
+      paymentIntentId: paymentIntent.id
+    });
+
   } catch (error) {
     next(error);
   }

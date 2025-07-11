@@ -95,11 +95,15 @@ exports.stripeWebhookHandler = async (req, res, next) => {
               update_time: new Date(paymentIntentSucceeded.created * 1000).toISOString(),
               // email_address: paymentIntentSucceeded.receipt_email // si disponible
             };
-            await order.save();
+            await order.save(); // Sauvegarde initiale de la commande mise à jour
             console.log(`Commande ${orderId} marquée comme payée.`);
 
+            // Mettre à jour le stock
+            const { updateStock } = require('../utils/stockService');
+            await updateStock(orderId); // Appeler la fonction de mise à jour du stock
+
             // Créer un enregistrement de transaction
-            await Transaction.create({
+            await Transaction.create({ // Cette création pourrait aussi être dans une transaction avec la mise à jour de stock si besoin critique
               user: order.user,
               order: orderId,
               stripePaymentIntentId: paymentIntentSucceeded.id,
@@ -112,7 +116,15 @@ exports.stripeWebhookHandler = async (req, res, next) => {
             });
             console.log(`Transaction enregistrée pour PaymentIntent ${paymentIntentSucceeded.id}`);
 
-            // TODO: Envoyer un email de confirmation de commande à l'utilisateur
+            // Envoyer un email de confirmation de commande
+            const User = require('../models/User'); // Assurez-vous que User est importé si pas déjà fait globalement
+            const user = await User.findById(order.user);
+            if (user) {
+              const { sendOrderConfirmationEmail } = require('../utils/emailService');
+              await sendOrderConfirmationEmail(user, order);
+            } else {
+              console.warn(`Webhook: Utilisateur ${order.user} non trouvé pour l'envoi de l'email de confirmation.`);
+            }
           } else {
             console.warn(`Webhook: Commande ${orderId} non trouvée pour le PaymentIntent ${paymentIntentSucceeded.id}`);
           }

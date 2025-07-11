@@ -80,6 +80,10 @@ const orderSchema = new mongoose.Schema(
       default: 'En attente de paiement',
       required: true,
     },
+    stockUpdated: { // Nouveau champ pour suivre la mise à jour du stock
+      type: Boolean,
+      default: false,
+    }
   },
   {
     timestamps: true, // Ajoute createdAt et updatedAt automatiquement

@@ -1,63 +1,108 @@
 // backend/utils/emailService.js
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
+const logger = require('./logger'); // Utiliser notre logger Winston
 
-// La configuration du transporteur dépendra de votre fournisseur de messagerie (Gmail, SendGrid, Mailgun, etc.)
-// Exemple avec un compte Gmail (moins recommandé pour la production en raison des limites)
-// Pour Gmail, vous devrez peut-être activer "Accès moins sécurisé des applications" ou utiliser un mot de passe d'application.
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // Ou un autre service
-  auth: {
-    user: process.env.EMAIL_USER, // Votre adresse e-mail
-    pass: process.env.EMAIL_PASS, // Votre mot de passe e-mail ou mot de passe d'application
-  },
-});
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-// Exemple pour SendGrid (plus robuste pour la production)
-// const transporter = nodemailer.createTransport({
-//   host: 'smtp.sendgrid.net',
-//   port: 587, // ou 465 pour SSL
-//   secure: false, // true pour le port 465, false pour les autres
-//   auth: {
-//     user: 'apikey', // Littéralement 'apikey'
-//     pass: process.env.SENDGRID_API_KEY,
-//   },
-// });
+const defaultFromName = process.env.EMAIL_FROM_NAME || 'Votre Boutique Ecommerce';
+const defaultFromEmail = process.env.EMAIL_FROM_ADDRESS || 'noreply@example.com'; // Doit être un domaine vérifié sur SendGrid
 
-const sendEmail = async (options) => {
-  const mailOptions = {
-    from: `"${process.env.EMAIL_FROM_NAME || 'Votre Nom/Application'}" <${process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER}>`,
-    to: options.to, // Destinataire(s)
-    subject: options.subject, // Sujet de l'e-mail
-    text: options.text, // Corps de l'e-mail en texte brut
-    html: options.html, // Corps de l'e-mail en HTML (optionnel, mais souvent préféré)
+/**
+ * Envoie un email générique.
+ * @param {object} options - Options pour l'email.
+ * @param {string} options.to - Adresse email du destinataire.
+ * @param {string} options.subject - Sujet de l'email.
+ * @param {string} options.text - Contenu texte de l'email.
+ * @param {string} options.html - Contenu HTML de l'email.
+ * @param {string} [options.fromEmail=defaultFromEmail] - Adresse email de l'expéditeur.
+ * @param {string} [options.fromName=defaultFromName] - Nom de l'expéditeur.
+ */
+const sendEmail = async ({ to, subject, text, html, fromEmail = defaultFromEmail, fromName = defaultFromName }) => {
+  if (!process.env.SENDGRID_API_KEY) {
+    logger.error('SENDGRID_API_KEY non configurée. Impossible d\'envoyer des emails.');
+    // En développement, on pourrait juste logguer l'email au lieu de le bloquer.
+    // Pour la production, c'est une erreur critique si les emails sont importants.
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('Configuration email manquante côté serveur.');
+    } else {
+        logger.info(`Email de développement (non envoyé) : À: ${to}, Sujet: ${subject}, HTML: ${html}`);
+        return { messageId: 'dev-email-not-sent-' + Date.now() };
+    }
+  }
+
+  const msg = {
+    to,
+    from: {
+        name: fromName,
+        email: fromEmail,
+    },
+    subject,
+    text, // SendGrid utilisera text si html n'est pas fourni, ou pour les clients mail ne supportant pas HTML
+    html,
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('E-mail envoyé: %s', info.messageId);
-    // info.response contient la réponse du serveur SMTP
-    return info;
+    const response = await sgMail.send(msg);
+    logger.info(`Email envoyé à ${to} avec succès. Sujet: ${subject}. Message ID: ${response[0]?.headers['x-message-id']}`);
+    return response;
   } catch (error) {
-    console.error("Erreur lors de l'envoi de l'e-mail:", error);
-    throw error; // Propage l'erreur pour la gérer plus haut si nécessaire
+    logger.error(`Erreur lors de l'envoi de l'email à ${to} (Sujet: ${subject}):`, error.response ? error.response.body : error);
+    // Ne pas propager l'erreur pour ne pas bloquer le flux principal (ex: création de commande)
+    // mais s'assurer que c'est loggué pour investigation.
+    // throw error; // Décommentez si l'échec d'envoi d'email doit être une erreur bloquante.
+    return null; // Indiquer un échec sans bloquer
   }
 };
 
-module.exports = sendEmail;
+/**
+ * Envoie un email de confirmation de commande.
+ * @param {object} user - L'objet utilisateur (contenant au moins `email` et `name`).
+ * @param {object} order - L'objet commande (contenant au moins `_id`, `totalPrice`, `orderItems`).
+ */
+exports.sendOrderConfirmationEmail = async (user, order) => {
+  if (!user || !user.email || !order) {
+    logger.error('sendOrderConfirmationEmail: Données utilisateur ou commande manquantes.');
+    return;
+  }
 
-/*
-Exemple d'utilisation dans un controller :
-const sendEmail = require('../utils/emailService');
-
-try {
-  await sendEmail({
-    to: 'destinataire@example.com',
-    subject: 'Test Email',
-    text: 'Ceci est un email de test.',
-    html: '<h1>Ceci est un email de test</h1><p>Avec du HTML!</p>'
+  // Construction simple du contenu HTML de l'email
+  // Pour des emails plus complexes, utilisez des templates (ex: Handlebars, EJS, ou des services comme SendGrid Templates)
+  let itemsHtml = '<ul>';
+  order.orderItems.forEach(item => {
+    itemsHtml += `<li>${item.name} (Quantité: ${item.quantity}) - ${(item.price * item.quantity).toFixed(2)} €</li>`;
   });
-  // Email envoyé avec succès
-} catch (error) {
-  // Gérer l'erreur d'envoi d'email
-}
-*/
+  itemsHtml += '</ul>';
+
+  const htmlContent = `
+    <h1>Merci pour votre commande, ${user.name || 'Client'} !</h1>
+    <p>Votre commande #${order._id} d'un montant total de <strong>${order.totalPrice.toFixed(2)} €</strong> a bien été reçue et est en cours de traitement.</p>
+    <h2>Détails de la commande :</h2>
+    ${itemsHtml}
+    <p>Vous recevrez un autre email lorsque votre commande sera expédiée.</p>
+    <p>Merci de faire confiance à ${defaultFromName}.</p>
+  `;
+  const textContent = `
+    Merci pour votre commande, ${user.name || 'Client'} !
+    Votre commande #${order._id} d'un montant total de ${order.totalPrice.toFixed(2)} € a bien été reçue et est en cours de traitement.
+    Détails de la commande :
+    ${order.orderItems.map(item => `${item.name} (Quantité: ${item.quantity}) - ${(item.price * item.quantity).toFixed(2)} €`).join('\n')}
+    Vous recevrez un autre email lorsque votre commande sera expédiée.
+    Merci de faire confiance à ${defaultFromName}.
+  `;
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: `Confirmation de votre commande #${order._id} chez ${defaultFromName}`,
+      text: textContent,
+      html: htmlContent,
+    });
+  } catch (error) {
+    // L'erreur est déjà logguée par sendEmail
+    logger.error(`Échec de l'envoi de l'email de confirmation pour la commande ${order._id} à ${user.email}`);
+  }
+};
+
+
+// Exporter sendEmail si on veut l'utiliser pour d'autres types d'emails
+module.exports.sendGenericEmail = sendEmail;

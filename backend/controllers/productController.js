@@ -2,13 +2,51 @@
 const Product = require('../models/Product');
 const { AppError } = require('../utils/errorHandler'); // Importer AppError
 
-// @desc    Récupérer tous les produits
+// @desc    Récupérer tous les produits avec pagination et filtrage/tri de base
 // @route   GET /api/products
 // @access  Public
 exports.getProducts = async (req, res, next) => {
   try {
-    // const products = await Product.find({}); // Décommentez quand le modèle est prêt
-    res.status(200).json({ success: true, count: 0, data: [], message: 'Produits récupérés (placeholder)' });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 8; // Nombre de produits par page, 8 par défaut
+    const skip = (page - 1) * limit;
+
+    // Options de filtrage et de tri (exemples simples)
+    let query = {};
+    if (req.query.category) {
+      query.category = req.query.category;
+    }
+    // TODO: Ajouter la recherche textuelle ici si q est fourni, en utilisant l'index textuel
+    // if (req.query.q) {
+    //   query.$text = { $search: req.query.q };
+    // }
+
+    let sort = {};
+    if (req.query.sortBy && req.query.orderBy) {
+      sort[req.query.sortBy] = req.query.orderBy === 'desc' ? -1 : 1;
+    } else {
+      sort.createdAt = -1; // Trier par date de création par défaut
+    }
+
+    const products = await Product.find(query)
+      .populate('user', 'name') // Optionnel: populer le créateur du produit
+      .skip(skip)
+      .limit(limit)
+      .sort(sort)
+      .select('-variants') // Exclure les variantes pour la liste générale pour alléger
+      .lean(); // .lean() pour des objets JS simples, plus rapide pour la lecture
+
+    const totalProducts = await Product.countDocuments(query);
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      totalProducts,
+      totalPages,
+      currentPage: page,
+      data: products,
+    });
   } catch (error) {
     next(error);
   }
