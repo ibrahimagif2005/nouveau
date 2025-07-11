@@ -31,17 +31,16 @@ api.interceptors.request.use(
       // Ce token doit être récupéré UNE SEULE FOIS par session de page ou lorsque nécessaire.
       // L'appel direct ici dans l'intercepteur pour chaque requête n'est PAS idéal.
       // Il est préférable de le récupérer au chargement de l'application.
-      const csrfToken = window.csrfToken; // Supposons qu'il est stocké globalement après un appel initial
+      const csrfToken = window.csrfToken;
       if (csrfToken) {
-        config.headers['XSRF-TOKEN'] = csrfToken; // csurf par défaut cherche 'XSRF-TOKEN' ou '_csrf' dans le corps/query, ou certains autres headers
+        // csurf par défaut cherche le token dans ces en-têtes (entre autres)
+        // ou dans req.body._csrf, req.query._csrf.
+        // Pour les API SPA, un en-tête est préférable.
+        config.headers['X-CSRF-Token'] = csrfToken; // ou 'XSRF-TOKEN'
       } else {
-        console.warn('CSRF token non disponible. L\'appel à /api/csrf-token doit être fait au chargement de l\'app.');
-        // Optionnel : tenter de le récupérer ici, mais attention aux boucles.
-        // try {
-        //   const csrfResponse = await axios.get('/api/csrf-token', { baseURL: process.env.REACT_APP_API_URL || '/api' });
-        //   window.csrfToken = csrfResponse.data.csrfToken;
-        //   config.headers['XSRF-TOKEN'] = window.csrfToken;
-        // } catch (e) { console.error("Échec de récupération du token CSRF à la volée", e); }
+        // Si le token n'est pas là, cela pourrait être un problème pour les requêtes non-GET.
+        // En production, on pourrait vouloir rejeter la requête ou logger une alerte plus sévère.
+        console.warn('CSRF token non disponible pour une requête modifiant l\'état.');
       }
     }
     return config;

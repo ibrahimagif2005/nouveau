@@ -15,7 +15,8 @@ import CheckoutPage from './pages/Checkout';
 import LoginPage from './pages/LoginPage'; // Importation de la nouvelle page
 import RegisterPage from './pages/RegisterPage';
 import SearchResultsPage from './pages/SearchResultsPage';
-import ProfilePage from './pages/ProfilePage'; // Importer ProfilePage
+import ProfilePage from './pages/ProfilePage';
+import OrderConfirmationPage from './pages/OrderConfirmationPage'; // Importer la page de confirmation
 
 import './index.css';
 
@@ -71,7 +72,9 @@ const AppContent = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/search-results" element={<SearchResultsPage />} />
-            <Route path="/profile" element={<ProfilePage />} /> {/* Nouvelle route pour le profil */}
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/order-confirmation/:orderIdFromPath" element={<OrderConfirmationPage />} />
+            <Route path="/order-confirmation" element={<OrderConfirmationPage />} /> {/* Pour gérer la redirection Stripe sans ID dans le path */}
             <Route path="*" element={<div className="text-center text-2xl mt-10">404 - Page Non Trouvée</div>} />
           </Routes>
         </main>

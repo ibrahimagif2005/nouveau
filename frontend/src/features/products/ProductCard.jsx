@@ -44,24 +44,26 @@ const ProductCard = memo(({ product }) => {
   return (
     <Link to={`/products/${product?._id || product?.id}`} className="group block border border-gray-200 bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col">
       <div className="relative">
-        <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-md bg-gray-100">
+        {/* Conteneur d'image avec hauteur responsive */}
+        <div className="w-full h-48 sm:h-56 md:h-64 overflow-hidden rounded-t-md bg-gray-100">
           <img
-            src={product.imageUrl || 'https://via.placeholder.com/300x200?text=Image+Produit'}
+            src={product.imageUrl || 'https://via.placeholder.com/400x300?text=Image+Produit'} // Image plus grande pour desktop
             alt={product.name || 'Image du produit'}
-            className="w-full h-full object-cover object-center group-hover:opacity-80 transition-opacity"
+            className="w-full h-full object-cover object-center group-hover:opacity-80 transition-opacity duration-300"
             loading="lazy"
           />
         </div>
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-2 right-2 z-10"> {/* S'assurer que le bouton est au-dessus */}
           <WishlistButton productId={product?._id || product?.id} initialIsInWishlist={initialIsInWishlist} />
         </div>
       </div>
-      <div className="p-4 flex flex-col flex-grow justify-between">
+      <div className="p-3 sm:p-4 flex flex-col flex-grow justify-between">
         <div>
-          <h3 className="font-semibold text-lg text-gray-800 group-hover:text-blue-600 transition-colors truncate" title={product.name}>
+          {/* Titre du produit avec line-clamp pour 2 lignes max */}
+          <h3 className="font-semibold text-base sm:text-lg text-gray-800 group-hover:text-blue-600 transition-colors line-clamp-2 h-12 sm:h-14" title={product.name}>
             {product.name || 'Produit Sans Nom'}
           </h3>
-          <p className="text-gray-700 font-bold text-xl my-1">
+          <p className="text-gray-700 font-bold text-lg sm:text-xl my-1 sm:my-2">
             ${product.price !== undefined ? product.price.toFixed(2) : 'N/A'}
           </p>
         </div>

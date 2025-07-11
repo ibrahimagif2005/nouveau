@@ -106,3 +106,51 @@ exports.sendOrderConfirmationEmail = async (user, order) => {
 
 // Exporter sendEmail si on veut l'utiliser pour d'autres types d'emails
 module.exports.sendGenericEmail = sendEmail;
+
+/**
+ * Envoie un email de réinitialisation de mot de passe.
+ * @param {string} email - Adresse email du destinataire.
+ * @param {string} token - Le token de réinitialisation de mot de passe.
+ * @param {string} userName - Nom de l'utilisateur (optionnel, pour personnaliser l'email).
+ */
+exports.sendPasswordResetEmail = async (email, token, userName = 'Utilisateur') => {
+  if (!email || !token) {
+    logger.error('sendPasswordResetEmail: Email ou token manquant.');
+    return;
+  }
+
+  // L'URL de réinitialisation doit pointer vers votre frontend
+  const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+
+  const htmlContent = `
+    <h1>Bonjour ${userName},</h1>
+    <p>Vous avez demandé une réinitialisation de votre mot de passe pour votre compte sur ${defaultFromName}.</p>
+    <p>Veuillez cliquer sur le lien ci-dessous pour choisir un nouveau mot de passe :</p>
+    <p><a href="${resetUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; display: inline-block;">Réinitialiser mon mot de passe</a></p>
+    <p>Ce lien expirera dans 1 heure (ou selon la configuration de votre token).</p>
+    <p>Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet email.</p>
+    <p>Cordialement,<br/>L'équipe ${defaultFromName}</p>
+  `;
+  const textContent = `
+    Bonjour ${userName},
+    Vous avez demandé une réinitialisation de votre mot de passe pour votre compte sur ${defaultFromName}.
+    Veuillez copier et coller le lien suivant dans votre navigateur pour choisir un nouveau mot de passe :
+    ${resetUrl}
+    Ce lien expirera dans 1 heure (ou selon la configuration de votre token).
+    Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet email.
+    Cordialement,
+    L'équipe ${defaultFromName}
+  `;
+
+  try {
+    await sendEmail({
+      to: email,
+      subject: `Réinitialisation de votre mot de passe - ${defaultFromName}`,
+      text: textContent,
+      html: htmlContent,
+    });
+  } catch (error) {
+    logger.error(`Échec de l'envoi de l'email de réinitialisation de mot de passe à ${email}`);
+    // L'erreur est déjà logguée par sendEmail
+  }
+};

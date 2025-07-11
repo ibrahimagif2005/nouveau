@@ -1,4 +1,5 @@
 // backend/controllers/orderController.js
+const mongoose = require('mongoose'); // Importer mongoose
 const Order = require('../models/Order');
 const Product = require('../models/Product'); // Nécessaire pour la création, non pour populate directement ici mais bonne pratique de l'avoir
 const { AppError } = require('../utils/errorHandler'); // Pour la gestion d'erreurs personnalisée
@@ -7,11 +8,24 @@ const { AppError } = require('../utils/errorHandler'); // Pour la gestion d'erre
 // @route   POST /api/orders
 // @access  Private
 exports.createOrder = async (req, res, next) => {
-  const { orderItems, shippingAddress, paymentMethod = 'Stripe' } = req.body; // paymentMethod par défaut à Stripe
+  const { orderItems, shippingAddress, paymentMethod = 'Stripe' } = req.body;
 
-  if (!orderItems || orderItems.length === 0) {
-    return next(new AppError('Aucun article dans la commande', 400));
+  if (!orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {
+    return next(new AppError('Aucun article dans la commande ou format incorrect.', 400));
   }
+
+  // Valider la structure de chaque orderItem (au moins product ID et quantity)
+  for (const item of orderItems) {
+    if (!item.product || !mongoose.Types.ObjectId.isValid(item.product) || !item.quantity || item.quantity <= 0) {
+      return next(new AppError('Chaque article de commande doit avoir un ID de produit valide et une quantité positive.', 400));
+    }
+  }
+
+  // Vérification de l'adresse de livraison (exemple simple)
+  if (!shippingAddress || !shippingAddress.address || !shippingAddress.city || !shippingAddress.postalCode || !shippingAddress.country) {
+    return next(new AppError('L\'adresse de livraison complète est requise.', 400));
+  }
+
 
   try {
     // 1. Vérifier les prix et calculer le total côté serveur pour la sécurité
@@ -19,7 +33,7 @@ exports.createOrder = async (req, res, next) => {
     const populatedOrderItems = [];
 
     for (const item of orderItems) {
-      const product = await Product.findById(item.product); // item.product est l'ID du produit
+      const product = await Product.findById(item.product);
       if (!product) {
         return next(new AppError(`Produit non trouvé: ID ${item.product}`, 404));
       }
@@ -31,12 +45,12 @@ exports.createOrder = async (req, res, next) => {
         product: product._id,
         name: product.name,
         quantity: item.quantity,
-        price: product.price, // Utiliser le prix de la BDD
+        price: product.price,
         imageUrl: product.imageUrl,
       });
     }
 
-    // TODO: Calculer taxPrice et shippingPrice de manière plus dynamique si nécessaire
+    // Calculer taxPrice et shippingPrice de manière plus dynamique si nécessaire
     const taxPrice = parseFloat((calculatedItemsPrice * 0.1).toFixed(2)); // Exemple: taxe de 10%
     const shippingPrice = calculatedItemsPrice > 100 ? 0 : 5; // Exemple: livraison gratuite si > 100€
     const totalPrice = parseFloat((calculatedItemsPrice + taxPrice + shippingPrice).toFixed(2));
