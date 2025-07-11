@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import CartIcon from '../features/cart/CartIcon';
+import SearchBar from '../features/search/SearchBar'; // Importer SearchBar
 import { useSelector, useDispatch } from 'react-redux';
 import { logoutUser, selectIsLoggedIn, selectCurrentUser } from '../redux/slices/authSlice'; // Assurez-vous que les chemins sont corrects
 
@@ -18,17 +19,24 @@ const Header = ({ openCartModal }) => {
 
   return (
     <header className="bg-gray-800 text-white p-4 shadow-md sticky top-0 z-50">
-      <div className="container mx-auto flex justify-between items-center">
+      <div className="container mx-auto flex flex-wrap justify-between items-center gap-y-3">
         <Link to="/" className="text-2xl font-bold hover:text-gray-300 transition-colors">
           MonEcommerce
         </Link>
-        <nav className="flex items-center space-x-4 md:space-x-6">
-          <Link to="/" className="hover:text-gray-300 transition-colors">Accueil</Link>
+
+        {/* SearchBar au centre pour les écrans plus grands, prend toute la largeur sur mobile */}
+        <div className="w-full md:w-auto md:flex-grow md:mx-8 order-3 md:order-2">
+          <SearchBar />
+        </div>
+
+        <nav className="flex items-center space-x-4 md:space-x-6 order-2 md:order-3">
+          <Link to="/" className="hover:text-gray-300 transition-colors hidden sm:inline">Accueil</Link>
 
           {isLoggedIn ? (
             <>
-              {/* Vous pouvez ajouter un lien vers un profil utilisateur ici si nécessaire */}
-              {/* <Link to="/profile" className="hover:text-gray-300">{currentUser?.name || 'Profil'}</Link> */}
+              <Link to="/profile" className="hover:text-gray-300 transition-colors">
+                {currentUser?.name ? `Bonjour, ${currentUser.name.split(' ')[0]}` : 'Mon Profil'}
+              </Link>
               <button
                 onClick={handleLogout}
                 className="hover:text-gray-300 transition-colors"

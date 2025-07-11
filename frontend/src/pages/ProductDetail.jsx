@@ -2,63 +2,93 @@
 import React, { useEffect, useState } /*, { useEffect, useState } */ from 'react';
 import { useParams } from 'react-router-dom';
 // import api from '../services/api';
-// import { useDispatch } from 'react-redux';
-// import { addToCartAction } from '../redux/slices/cartSlice';
-import ReviewForm from '../features/reviews/ReviewForm'; // Importer ReviewForm
-import SimilarProducts from '../features/recommendations/SimilarProducts'; // Importer SimilarProducts
-// import RatingStars from '../features/reviews/RatingStars'; // Si affichage note moyenne
+import { useDispatch, useSelector } from 'react-redux'; // Importer useSelector
+import { addToCartAction } from '../redux/slices/cartSlice'; // Décommenter si utilisé directement
+import { selectCurrentUser } from '../redux/slices/authSlice'; // Importer pour la wishlist
+import ReviewForm from '../features/reviews/ReviewForm';
+import SimilarProducts from '../features/recommendations/SimilarProducts';
+import WishlistButton from '../features/wishlist/WishlistButton';
+import StarRating from '../features/reviews/StarRating'; // Renommé et à utiliser
+import ReviewList from '../features/reviews/ReviewList'; // Pour afficher les avis
+import useApi from '../hooks/useApi'; // Pour charger les avis
 
 const ProductDetailPage = () => {
-  const { id: productId } = useParams(); // Récupère l'ID du produit depuis l'URL
+  const { id: productId } = useParams();
   const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Chargement du produit principal
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  // const dispatch = useDispatch();
+  const dispatch = useDispatch();
+  const currentUser = useSelector(selectCurrentUser);
+
+  const { fetchData: fetchProductData, isLoading: productIsLoading, error: productError } = useApi();
+  const { fetchData: fetchReviewsData, isLoading: reviewsAreLoading, error: reviewsError } = useApi();
+  const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      setLoading(true);
+    const loadProductAndReviews = async () => {
+      if (!productId) return;
+
+      setLoading(true); // Indique le chargement global de la page
       setError(null);
+
       try {
-        // const response = await api.get(`/products/${productId}`); // Exemple d'appel API
-        // setProduct(response.data.data);
-        // Simulation de données
+        // Charger les détails du produit
+        // Remplacer la simulation par l'appel réel
+        // const productData = await fetchProductData(`/products/${productId}`);
+        // setProduct(productData.data);
+
+        // Simulation actuelle pour le produit
         setTimeout(() => {
-          if (productId === "1") {
-            setProduct({
-              id: '1',
-              name: 'Produit Alpha Détaillé',
-              price: 29.99,
-              imageUrl: 'https://via.placeholder.com/600x400?text=Produit+Alpha',
-              description: 'Ceci est une description détaillée et plus longue pour le Produit Alpha. Il possède de nombreuses fonctionnalités intéressantes et est fabriqué avec des matériaux de haute qualité. Parfait pour tous vos besoins.',
-              stock: 10,
-              category: 'Électronique'
-            });
-          } else {
-             setProduct({
-              id: productId,
-              name: `Produit ${productId} Détaillé`,
-              price: Math.floor(Math.random() * 100) + 20,
-              imageUrl: `https://via.placeholder.com/600x400?text=Produit+${productId}`,
-              description: `Description détaillée pour le produit ${productId}. Lorem ipsum dolor sit amet, consectetur adipiscing elit.`,
-              stock: Math.floor(Math.random() * 20) + 5,
-              category: 'Divers'
-            });
-          }
-          setLoading(false);
-        }, 1000);
+          const mockProduct = productId === "1" ? {
+            _id: '1', name: 'Produit Alpha Détaillé', price: 29.99, imageUrl: 'https://via.placeholder.com/600x400?text=Produit+Alpha',
+            description: 'Ceci est une description détaillée et plus longue pour le Produit Alpha...', stock: 10, category: 'Électronique',
+            averageRating: 4.5, numReviews: 2 // Ajout pour les étoiles
+          } : {
+            _id: productId, name: `Produit ${productId} Détaillé`, price: Math.floor(Math.random() * 100) + 20,
+            imageUrl: `https://via.placeholder.com/600x400?text=Produit+${productId}`, description: `Description pour ${productId}.`,
+            stock: Math.floor(Math.random() * 20) + 5, category: 'Divers', averageRating: 3.2, numReviews: 5
+          };
+          setProduct(mockProduct);
+        }, 500);
+
+        // Charger les avis pour le produit
+        // const reviewsData = await fetchReviewsData(`/products/${productId}/reviews`);
+        // setReviews(reviewsData.data || []);
+
+        // Simulation pour les avis
+         setTimeout(() => {
+            setReviews([
+                { _id: 'r1', user: { name: 'Alice' }, rating: 5, title: 'Excellent!', comment: 'Super produit, je recommande vivement.', createdAt: new Date().toISOString() },
+                { _id: 'r2', user: { name: 'Bob' }, rating: 4, comment: 'Bon produit, conforme à la description.', createdAt: new Date(Date.now() - 86400000).toISOString() }, // Hier
+            ]);
+        }, 700);
+
+
       } catch (err) {
-        console.error(`Erreur de chargement du produit ${productId}:`, err);
-        setError('Impossible de charger les détails du produit.');
-        setLoading(false);
+        console.error(`Erreur de chargement pour la page produit ${productId}:`, err);
+        setError(err.message || 'Impossible de charger les informations.');
+      } finally {
+        setLoading(false); // Chargement global terminé
       }
     };
 
-    if (productId) {
-      fetchProduct();
+    loadProductAndReviews();
+  }, [productId, fetchProductData, fetchReviewsData]); // fetchProductData et fetchReviewsData sont stables grâce à useCallback dans useApi
+
+  const handleReviewSubmitted = (newReview) => {
+    // Mettre à jour la liste des avis avec le nouvel avis, ou re-fetcher la liste
+    setReviews(prevReviews => [newReview, ...prevReviews]);
+    // Idéalement, le backend renverrait le produit mis à jour avec la nouvelle note moyenne,
+    // ou on pourrait re-fetcher le produit.
+    // Pour l'instant, on pourrait simuler la mise à jour de la note.
+    if (product) {
+        // Ceci est une simulation, la vraie mise à jour viendrait du backend ou d'un re-fetch
+        const newNumReviews = (product.numReviews || 0) + 1;
+        const newAverageRating = (((product.averageRating || 0) * (product.numReviews || 0)) + newReview.rating) / newNumReviews;
+        setProduct(prev => ({...prev, averageRating: parseFloat(newAverageRating.toFixed(1)), numReviews: newNumReviews }));
     }
-  }, [productId]);
+  };
 
   const handleAddToCart = () => {
     if (product && quantity > 0) {
@@ -94,9 +124,18 @@ const ProductDetailPage = () => {
 
         {/* Colonne Détails */}
         <div className="md:col-span-1 flex flex-col">
-          <h1 className="text-3xl lg:text-4xl font-bold mb-3">{product.name}</h1>
-          {/* TODO: Afficher les étoiles de notation moyenne ici */}
-          {/* <RatingStars rating={product.averageRating || 0} editable={false} /> */}
+          <div className="flex justify-between items-start mb-2">
+            <h1 className="text-3xl lg:text-4xl font-bold flex-grow">{product.name}</h1>
+            <div className="flex-shrink-0 ml-4 mt-1"> {/* Ajustement du margin top pour alignement */}
+              <WishlistButton productId={product?._id || product?.id} initialIsInWishlist={currentUser?.wishlist?.some(item => (item._id || item) === (product?._id || product?.id)) || false} />
+            </div>
+          </div>
+          <div className="flex items-center mb-3">
+            <StarRating rating={product.averageRating || 0} editable={false} />
+            {product.numReviews > 0 && (
+              <span className="ml-2 text-sm text-gray-600">({product.numReviews} avis)</span>
+            )}
+          </div>
           <p className="text-2xl text-blue-600 font-semibold my-4">${product.price ? product.price.toFixed(2) : 'N/A'}</p>
 
           <div className="prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none mb-6">
@@ -142,12 +181,12 @@ const ProductDetailPage = () => {
 
       {/* Section Avis */}
       <div className="my-12 pt-8 border-t">
-        <h2 className="text-2xl font-semibold mb-6">Avis des Clients</h2>
-        {/* TODO: Afficher les avis existants ici */}
-        {/* <ReviewList reviews={product.reviews || []} /> */}
-        <p className="text-gray-600 mb-4">(Placeholder pour la liste des avis)</p>
-        {/* TODO: Permettre de soumettre un avis (si l'utilisateur est connecté et a acheté le produit?) */}
-        <ReviewForm productId={productId} onSubmitSuccess={(newReview) => console.log('Avis soumis:', newReview)} />
+        <h2 className="text-2xl font-semibold mb-6">Avis des Clients ({product.numReviews || 0})</h2>
+        <ReviewList reviews={reviews} isLoading={reviewsAreLoading} error={reviewsError} />
+        {/* TODO: Conditionner l'affichage de ReviewForm (ex: si utilisateur connecté et n'a pas déjà posté) */}
+        {currentUser && (
+            <ReviewForm productId={productId} onSubmitSuccess={handleReviewSubmitted} />
+        )}
       </div>
 
       {/* Section Produits Similaires/Recommandations */}

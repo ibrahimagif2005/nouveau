@@ -13,7 +13,9 @@ import HomePage from './pages/Home';
 import ProductDetailPage from './pages/ProductDetail';
 import CheckoutPage from './pages/Checkout';
 import LoginPage from './pages/LoginPage'; // Importation de la nouvelle page
-import RegisterPage from './pages/RegisterPage'; // Importation de la nouvelle page
+import RegisterPage from './pages/RegisterPage';
+import SearchResultsPage from './pages/SearchResultsPage';
+import ProfilePage from './pages/ProfilePage'; // Importer ProfilePage
 
 import './index.css';
 
@@ -68,6 +70,8 @@ const AppContent = () => {
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/search-results" element={<SearchResultsPage />} />
+            <Route path="/profile" element={<ProfilePage />} /> {/* Nouvelle route pour le profil */}
             <Route path="*" element={<div className="text-center text-2xl mt-10">404 - Page Non Trouvée</div>} />
           </Routes>
         </main>

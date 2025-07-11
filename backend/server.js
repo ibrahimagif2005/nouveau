@@ -23,7 +23,9 @@ connectDB();
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
-const paymentRoutes = require('./routes/paymentRoutes'); // Ajout des routes de paiement
+const paymentRoutes = require('./routes/paymentRoutes');
+const userRoutes = require('./routes/userRoutes');
+const reviewRoutes = require('./routes/reviewRoutes'); // Ajout des routes pour les avis
 
 const app = express();
 
@@ -138,6 +140,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/reviews', reviewRoutes); // Montage des routes pour les avis (pour PUT/DELETE sur /api/reviews/:reviewId)
 
 // Route de test
 app.get('/', (req, res) => {

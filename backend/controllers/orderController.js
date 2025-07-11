@@ -134,19 +134,9 @@ exports.updateOrderToPaid = async (req, res, next) => {
 };
 
 // @desc    Récupérer les commandes de l'utilisateur connecté
-// @route   GET /api/orders/myorders
+// @route   GET /api/orders/myorders -> DÉPLACÉ VERS /api/users/orders
 // @access  Private
-exports.getMyOrders = async (req, res, next) => {
-  try {
-    const orders = await Order.find({ user: req.user._id })
-      .populate('orderItems.product', 'name price imageUrl') // Populer les produits pour chaque commande
-      .sort({ createdAt: -1 }); // Trier par date de création, les plus récentes en premier
-
-    res.status(200).json({ success: true, count: orders.length, data: orders });
-  } catch (error) {
-    next(error);
-  }
-};
+// exports.getMyOrders = async (req, res, next) => { ... } // Cette fonction est maintenant dans userController.js
 
 // @desc    Récupérer toutes les commandes (Admin)
 // @route   GET /api/orders

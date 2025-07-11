@@ -45,6 +45,10 @@ const userSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     deviceInfo: { type: String } // User-Agent ou autre info pour identifier l'appareil/session
     // revokedAt: Date // Optionnel, pour marquer un token comme révoqué explicitement
+  }],
+  wishlist: [{ // Champ pour la wishlist
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product'
   }]
 });
 

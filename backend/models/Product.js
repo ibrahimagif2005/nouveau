@@ -69,6 +69,18 @@ const productSchema = new mongoose.Schema({
     metaDescription: { type: String, trim: true, maxlength: 160 },
     // keywords: [String] // Optionnel, moins utilisé par Google maintenant
   },
+  averageRating: { // Note moyenne des avis
+    type: Number,
+    default: 0,
+    min: [0, 'La note moyenne ne peut être négative'],
+    max: [5, 'La note moyenne ne peut dépasser 5'],
+    set: (val) => Math.round(val * 10) / 10 // Arrondir à une décimale
+  },
+  numReviews: { // Nombre total d'avis
+    type: Number,
+    default: 0,
+    min: [0, 'Le nombre d\'avis ne peut être négatif']
+  },
   createdAt: {
     type: Date,
     default: Date.now,

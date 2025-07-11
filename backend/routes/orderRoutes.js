@@ -17,11 +17,11 @@ router.route('/')
   // Seuls les admins peuvent voir toutes les commandes
   .get(protect, authorize('admin'), getAllOrders);
 
-router.route('/myorders').get(protect, getMyOrders); // Commandes de l'utilisateur connecté
+// router.route('/myorders').get(protect, getMyOrders); // DÉPLACÉ VERS /api/users/orders
 
 // Ces routes doivent être après /myorders pour éviter les conflits de route
-router.route('/:id').get(protect, getOrderById);
-router.route('/:id/pay').put(protect, updateOrderToPaid);
+router.route('/:id').get(protect, getOrderById); // Reste ici car c'est /api/orders/:id
+router.route('/:id/pay').put(protect, updateOrderToPaid); // Reste ici
 // Une route pour marquer comme livré (admin seulement) pourrait être ajoutée ici
 // router.route('/:id/deliver').put(protect, authorize('admin'), updateOrderToDelivered);
 
